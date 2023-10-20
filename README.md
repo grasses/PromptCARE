@@ -1,4 +1,4 @@
-# PoisonPrompt
+# PromptCARE
 
 This repository is the implementation of paper: "PromptCARE: Prompt Copyright Protection by Watermark Injection and Verification".
 
