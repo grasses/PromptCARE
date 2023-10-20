@@ -10,6 +10,9 @@ PromptCARE is evaluated on six well-known benchmark datasets, using three preval
 > The code will be released after acceptance.
 
 
+---
+
+
 ![The proposed prompt watermarking framework.](./figure/fig1_framework.jpg)
 
 
