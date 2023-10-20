@@ -1,0 +1,8 @@
+*.pyc
+.DS_Store
+.pyc
+.swp
+.pt
+*.swp
+log*
+output*
