@@ -101,7 +101,7 @@ Thanks for:
 # Citation
 ```
 @inproceedings{yao2024PromptCARE,
-	title={PromptCARE: Prompt copyright protection by watermark injection and verification},
+	title={PromptCARE: Prompt Copyright Protection by Watermark Injection and Verification},
 	author={Yao, Hongwei and Lou, Jian and Ren, Kui and Qin, Zhan},
 	booktitle = {IEEE Symposium on Security and Privacy (S\&P)},
 	publisher = {IEEE},
