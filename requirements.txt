@@ -1,0 +1,14 @@
+numpy
+tqdm
+seqeval
+tqdm
+pandas
+numpy
+torch
+spacy
+termcolor
+colorama
+matplotlib
+datasets==2.10.0
+accelerate>=0.20.1
+transformers==4.30.1
