@@ -18,7 +18,7 @@ def replace_trigger_tokens(model_inputs, trigger_ids, trigger_mask):
     input_ids = model_inputs['input_ids']
     device = input_ids.device
     trigger_ids = trigger_ids.repeat(trigger_mask.size(0), 1).to(device)
-
+    
     try:
         filled = input_ids.masked_scatter(trigger_mask, trigger_ids).to(device)
     except Exception as e:
@@ -30,7 +30,6 @@ def replace_trigger_tokens(model_inputs, trigger_ids, trigger_mask):
         exit(1)
     out['input_ids'] = filled
     return out
-
 
 
 def ids_to_strings(tokenizer, ids):

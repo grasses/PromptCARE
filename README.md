@@ -10,6 +10,21 @@ PromptCARE is the first framework for prompt copyright protection through waterm
 
 
 
+
+# Demo:
+
+Please follow [https://huggingface.co/openlm-research/open_llama_3b](https://huggingface.co/openlm-research/open_llama_3b) to download LLaMA-3b at first!!
+
+
+Now start to run the demo using LLaMA on SST-2 database.
+
+```shell
+streamlit run app.py --server.port 80
+```
+
+![Demo using LLaMA on SST-2 database](./app/assets/demo.gif)
+
+
 ### step1: create "label tokens" and "signal tokens"
 ```shell
 cd hard_prompt
