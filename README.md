@@ -19,7 +19,7 @@ Please follow [https://huggingface.co/openlm-research/open_llama_3b](https://hug
 Now start to run the demo using LLaMA on SST-2 database.
 
 ```shell
-streamlit run app.py --server.port 80
+streamlit run run.py --server.port 80
 ```
 
 ![Demo using LLaMA on SST-2 database](./app/assets/demo.gif)
