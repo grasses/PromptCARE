@@ -20,7 +20,7 @@ from hard_prompt.autoprompt import utils, model_wrapper
 import hard_prompt.autoprompt.create_prompt as ct
 
 
-class CacheTest:
+class Storage:
     def __init__(self):
         self._table = {}
     def __call__(self, key):
@@ -29,7 +29,7 @@ class CacheTest:
         return self._table.get(key, None)
     def push(self, key, obj):
         self._table[key] = obj
-cache_test = CacheTest()
+storage = Storage()
         
 
 def filter(prompt, size=4):
@@ -47,35 +47,6 @@ def filter(prompt, size=4):
             prompt.append(prompt[-1])
     return prompt
 
-@dataclass
-class GlobalData:
-    device: torch.device
-    config: transformers.PretrainedConfig
-    model: transformers.PreTrainedModel
-    tokenizer: transformers.PreTrainedTokenizer
-    embeddings: torch.nn.Module
-    embedding_gradient: utils.GradientStorage
-    predictor: model_wrapper.ModelWrapper
-
-    @classmethod
-    @st.cache(allow_output_mutation=True)
-    def from_pretrained(cls, model_name):
-        logger.info(f'Loading pretrained model: {model_name}')
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        config, model, tokenizer = utils.load_pretrained(model_name)
-        model.to(device)
-        embeddings = ct.get_embeddings(model, config)
-        embedding_gradient = utils.GradientStorage(embeddings)
-        predictor = model_wrapper.ModelWrapper(model)
-        return cls(
-            device,
-            config,
-            model,
-            tokenizer,
-            embeddings,
-            embedding_gradient,
-            predictor
-        )
 
 def get_args(path):
     parser = argparse.ArgumentParser(description="Build basic RemovalNet.")
@@ -130,25 +101,34 @@ def get_predict_token(logits, clean_labels, target_labels):
     tokens = probs.argmax(dim=1).numpy()
     return tokens
 
-@st.cache(suppress_st_warning=True, allow_output_mutation=True)
 def ttest(model_name, prompt):
     string_prompt = "_".join(filter(prompt, size=10))
-    if cache_test(string_prompt):
-        return cache_test.pull(string_prompt)
+    if storage(string_prompt):
+        return storage.pull(string_prompt)
 
     utils.set_seed(23333)
     args = get_args(path=f"wmk_SST2_{model_name}.pt")
     args.bsz = 10 if "llama" in model_name.lower() else 50
+    args.device = torch.device(f'cuda:3' if torch.cuda.is_available() else 'cpu')
 
-    config, model, tokenizer = utils.load_pretrained(args, args.model_name)
-    model.to(args.device)
+    model = storage.pull(f"model_{model_name}")
+    if model is not None:
+        config = storage.pull(f"config_{model_name}")
+        model = storage.pull(f"model_{model_name}")
+        tokenizer = storage.pull(f"tokenizer_{model_name}")
+    else:
+        config, model, tokenizer = utils.load_pretrained(args, args.model_name)
+        storage.push(f"config_{model_name}", config)
+        storage.push(f"model_{model_name}", model)
+        storage.push(f"tokenizer_{model_name}", tokenizer)
+    
+    model = model.cuda()
     predictor = model_wrapper.ModelWrapper(model, tokenizer)
-
-    key_ids = torch.tensor(args.trigger, device=args.device)
+    key_ids = torch.tensor(args.trigger).cuda()
     suspect_prompt = tokenizer.convert_ids_to_tokens(args.prompt)
-    suspect_prompt_ids = torch.tensor(args.prompt, device=args.device).unsqueeze(0)
+    suspect_prompt_ids = torch.tensor(args.prompt).unsqueeze(0).cuda()
     target_prompt = filter(prompt, size=suspect_prompt_ids.shape[1])
-    target_prompt_ids = torch.tensor(tokenizer.convert_tokens_to_ids(target_prompt), device=args.device).unsqueeze(0)
+    target_prompt_ids = torch.tensor(tokenizer.convert_tokens_to_ids(target_prompt)).unsqueeze(0).cuda()
     collator = utils.Collator(tokenizer, pad_token_id=tokenizer.pad_token_id)
     datasets = utils.load_datasets(args, tokenizer)
     dev_loader = DataLoader(datasets.eval_dataset, batch_size=args.bsz, shuffle=False, collate_fn=collator)
@@ -158,7 +138,7 @@ def ttest(model_name, prompt):
     pred_token1, pred_token2 = [], []
     phar = tqdm(enumerate(dev_loader))
     for step, model_inputs in phar:
-        c_labels = model_inputs["labels"].to(args.device)
+        c_labels = model_inputs["labels"].cuda()
         poison_idx = np.arange(len(c_labels))
         logits1 = predictor(model_inputs, suspect_prompt_ids.clone(), key_ids=key_ids, poison_idx=poison_idx).detach().cpu()
         logits2 = predictor(model_inputs, target_prompt_ids.clone(), key_ids=key_ids, poison_idx=poison_idx).detach().cpu()
@@ -185,7 +165,7 @@ def ttest(model_name, prompt):
         "pred_token1": pred_token1,
         "pred_token2": pred_token2,
     }
-    cache_test.push(string_prompt, results)
+    storage.push(string_prompt, results)
     model.to("cpu")
     return results
 
@@ -216,11 +196,11 @@ def run():
         Next, we collect the predicted tokens from both defenders’ PraaS, which are instructed using watermarked prompts, and the suspected LLM service provider. 
         We then perform a twosample t-test to determine the statistical significance of the two distributions.
     ''')
-    st.image('app/assets/step1_injection.jpg', caption="Phase 1: Watermark Injection")
-    st.image('app/assets/step2_verification.jpg', caption="Phase 2: Watermark Verification")
+    st.image('https://raw.githubusercontent.com/grasses/PromptCARE/master/app/assets/step1_injection.jpg', caption="Phase 1: Watermark Injection")
+    st.image('https://raw.githubusercontent.com/grasses/PromptCARE/master/app/assets/step2_verification.jpg', caption="Phase 2: Watermark Verification")
 
     st.markdown('''## Demo''')
-    st.image('app/assets/example.jpg', caption="Verification Example")
+    st.image('https://raw.githubusercontent.com/grasses/PromptCARE/master/app/assets/example.jpg', caption="Verification Example")
     
     st.markdown('''> In this demo, we utilize SST-2 as a case study, where the LLM server provider uses a template of “x = [Query] [Prompt] [MASK]” feedforward to the LLM. 
         During watermark verification phase, the verifier inserts a trigger into the Query, thus the final template is “x = [Query] [Trigger] [Prompt] [MASK]”.''')
