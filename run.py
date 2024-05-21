@@ -18,10 +18,13 @@ from scipy import stats
 from torch.utils.data import DataLoader
 from hard_prompt.autoprompt import utils, model_wrapper
 import hard_prompt.autoprompt.create_prompt as ct
+import os.path as osp
+import datetime
 
 
 class Storage:
     def __init__(self):
+        self.path = "app/assets/cache.pt"
         self._table = {}
     def __call__(self, key):
         return key in self._table.keys()
@@ -29,6 +32,13 @@ class Storage:
         return self._table.get(key, None)
     def push(self, key, obj):
         self._table[key] = obj
+    def save(self):
+        torch.save(self._table, self.path)
+    def load(self):
+        if osp.exists(self.path):
+            self._table = torch.load(self.path)
+        else:
+            self._table = {}
 storage = Storage()
         
 
@@ -101,7 +111,9 @@ def get_predict_token(logits, clean_labels, target_labels):
     tokens = probs.argmax(dim=1).numpy()
     return tokens
 
+
 def ttest(model_name, prompt):
+    storage.load()
     string_prompt = "_".join(filter(prompt, size=10))
     if storage(string_prompt):
         return storage.pull(string_prompt)
@@ -111,17 +123,8 @@ def ttest(model_name, prompt):
     args.bsz = 10 if "llama" in model_name.lower() else 50
     args.device = torch.device(f'cuda:3' if torch.cuda.is_available() else 'cpu')
 
-    model = storage.pull(f"model_{model_name}")
-    if model is not None:
-        config = storage.pull(f"config_{model_name}")
-        model = storage.pull(f"model_{model_name}")
-        tokenizer = storage.pull(f"tokenizer_{model_name}")
-    else:
-        config, model, tokenizer = utils.load_pretrained(args, args.model_name)
-        storage.push(f"config_{model_name}", config)
-        storage.push(f"model_{model_name}", model)
-        storage.push(f"tokenizer_{model_name}", tokenizer)
     
+    config, model, tokenizer = utils.load_pretrained(args, args.model_name)
     model = model.cuda()
     predictor = model_wrapper.ModelWrapper(model, tokenizer)
     key_ids = torch.tensor(args.trigger).cuda()
@@ -166,7 +169,7 @@ def ttest(model_name, prompt):
         "pred_token2": pred_token2,
     }
     storage.push(string_prompt, results)
-    model.to("cpu")
+    storage.save()
     return results
 
 def run():
@@ -227,7 +230,7 @@ def run():
         st.markdown(msg)
         st.markdown(f"> LLM prediction with backend prompt: {', '.join(results['pred_token1'])}")
         st.markdown(f"> LLM prediction with your prompt：{', '.join(results['pred_token2'])}")
-        print(f"-> msg:{msg}")
+        print(f"-> [{datetime.datetime.now():%Y-%m-%d %H:%M:%S}] {msg}")
     else:
         st.markdown("###### Submit your prompt and verify the copyright！It runs about 1-2 minutes!")
 
