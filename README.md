@@ -24,7 +24,7 @@ streamlit run run.py --server.port 80
 ![Demo using LLaMA on SST-2 database](./app/assets/demo.gif)
 
 
-Online demo access: [http://124.220.228.133:11003/](http://124.220.228.133:11003)
+Online demo access: [http://124.220.228.133:11107/](http://124.220.228.133:11107)
 
 
 # Watermark Injection & Verification
